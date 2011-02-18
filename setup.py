@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name="mock_ext",
-    version="dev",
+    version="0.1",
     description="Python mock library extensions",
     author="Matthew J. Morrison & JR",
     py_modules=('mock_ext',),
