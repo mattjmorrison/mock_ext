@@ -47,6 +47,9 @@ class MyThing(object):
         else:
             raise AgeMissing
 
+    def get_something(self):
+        return "Something"
+
 class SomeTests(unittest.TestCase):
 
     def setUp(self):
@@ -97,10 +100,12 @@ class SomeTests(unittest.TestCase):
         self.assertEqual(2, self.thing.things)
         self.assertEqual(self.thing.address, 'xxx')
 
-    def test_something(self):
-        with mock.patch.object(MyThing, 'set_name', mock.Mock()):
-            self.thing.do_something(address="x", age="y")
-            self.assertEqual(2, self.thing.things)
+    @patch_except(MyThing, 'do_something', with_mock=mock.MagicMock)
+    def test_sets_address_and_things(self):
+        self.thing.do_something()
+        self.assertTrue(isinstance(self.thing.get_something(), mock.MagicMock))
+        
+
 
 if __name__ == '__main__':
     unittest.main()
