@@ -1,7 +1,6 @@
 import unittest
-import mock
 
-from mock_ext import patch_except
+from mock_ext import patch_except, mock, Mock
 
 class AgeMissing(ValueError):
     pass
@@ -49,6 +48,18 @@ class MyThing(object):
 
     def get_something(self):
         return "Something"
+
+    def nested_method_calls(self, stuff):
+        return self.nested_call_one().first(stuff).second(stuff).third(123)
+
+    def nested_call_one(self):
+        return self
+
+    def first(self):
+        return self
+
+    def second(self):
+        return self
 
 class SomeTests(unittest.TestCase):
 
@@ -104,8 +115,42 @@ class SomeTests(unittest.TestCase):
     def test_sets_address_and_things(self):
         self.thing.do_something()
         self.assertTrue(isinstance(self.thing.get_something(), mock.MagicMock))
-        
 
+    @patch_except(MyThing, 'nested_method_calls', with_mock=Mock)
+    def test_chained_calls(self):
+        result = self.thing.nested_method_calls("abc")
+
+        self.thing.nested_call_one.assertChained([
+            ('third', (123,), {}),
+            ('first', ("abc",), {}),
+            ('second', ("abc",), {}),
+        ], result)
+
+class SampleManager(object):
+    @property
+    def base_query(self):
+        pass
+
+    def filter(self):
+        pass
+
+    def some_other_chained_call(self):
+        return self.base_query.filter(one=1, two=2).filter(three=3).filter(three=3)
+
+    def some_chained_call(self):
+        return self.base_query.filter(one=1).filter(two=2).filter(three=3).filter(three=3)
+
+class Other(unittest.TestCase):
+
+    def test_chained_calls_and_properties_with_return_value(self):
+        manager = Mock(spec=SampleManager)
+        result = SampleManager.some_other_chained_call(manager)
+        manager.assertChained([
+            'base_query',
+            ('filter', (), {'one':1, 'two':2}),
+            ('filter', (), {'three':3}),
+            ('filter', (), {'three':3}),
+        ], result)
 
 if __name__ == '__main__':
     unittest.main()
