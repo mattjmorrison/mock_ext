@@ -1,4 +1,5 @@
 import mock
+from mock import patch, MagicMock
 
 class Mock(mock.Mock):
 
@@ -60,7 +61,7 @@ class Mock(mock.Mock):
         else:
             raise AssertionError(self.missing_return_value % value)
 
-def patch_except(klass, *args, **kwargs):
+def patch_exclude(klass, *args, **kwargs):
     """
     USAGE:
 
@@ -68,7 +69,6 @@ def patch_except(klass, *args, **kwargs):
     def test_something(self):
         SomeClass.some_attribute # <= is NOT a mock
         SomeClass.anything_else # <= IS a mock!
-
 
     @patch_except(SomeClass, some_attribute, some_other_attribute, ...)
     def test_something(self):
@@ -91,3 +91,5 @@ def patch_except(klass, *args, **kwargs):
                 func = mock.patch.object(klass, attribute, mock_class())(func)
         return func
     return first_wrap
+
+mock.patch.exclude = patch_exclude

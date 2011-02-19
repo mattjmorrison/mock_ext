@@ -1,6 +1,5 @@
 import unittest
-
-from mock_ext import patch_except, mock, Mock
+import mock_ext
 
 class AgeMissing(ValueError):
     pass
@@ -90,33 +89,33 @@ class SomeTests(unittest.TestCase):
     def test_something_does_everything(self):
         self.thing.do_something()
         self.assertEqual(1, self.thing.things)
-    test_something_does_everything = mock.patch.object(MyThing, 'set_name', mock.Mock())(test_something_does_everything)
-    test_something_does_everything = mock.patch.object(MyThing, 'set_age', mock.Mock())(test_something_does_everything)
-    test_something_does_everything = mock.patch.object(MyThing, 'set_address', mock.Mock())(test_something_does_everything)
+    test_something_does_everything = mock_ext.patch.object(MyThing, 'set_name', mock_ext.Mock())(test_something_does_everything)
+    test_something_does_everything = mock_ext.patch.object(MyThing, 'set_age', mock_ext.Mock())(test_something_does_everything)
+    test_something_does_everything = mock_ext.patch.object(MyThing, 'set_address', mock_ext.Mock())(test_something_does_everything)
 
-    @patch_except(MyThing, 'do_something', 'add')
+    @mock_ext.patch.exclude(MyThing, 'do_something', 'add')
     def test_something_does_everything_new_mock(self):
         self.thing.do_something()
         self.assertEqual(1, self.thing.things)
 
-    @patch_except(MyThing, 'do_something', 'set_name', 'add')
+    @mock_ext.patch.exclude(MyThing, 'do_something', 'set_name', 'add')
     def test_sets_name_and_things(self):
         self.thing.do_something(name="matt")
         self.assertEqual(1, self.thing.things)
         self.assertEqual(self.thing.name, 'matt')
 
-    @patch_except(MyThing, 'do_something', 'set_address', 'add')
+    @mock_ext.patch.exclude(MyThing, 'do_something', 'set_address', 'add')
     def test_sets_address_and_things(self):
         self.thing.do_something(address="xxx")
         self.assertEqual(2, self.thing.things)
         self.assertEqual(self.thing.address, 'xxx')
 
-    @patch_except(MyThing, 'do_something', with_mock=mock.MagicMock)
+    @mock_ext.patch.exclude(MyThing, 'do_something', with_mock=mock_ext.MagicMock)
     def test_sets_address_and_things(self):
         self.thing.do_something()
-        self.assertTrue(isinstance(self.thing.get_something(), mock.MagicMock))
+        self.assertTrue(isinstance(self.thing.get_something(), mock_ext.MagicMock))
 
-    @patch_except(MyThing, 'nested_method_calls', with_mock=Mock)
+    @mock_ext.patch.exclude(MyThing, 'nested_method_calls', with_mock=mock_ext.Mock)
     def test_chained_calls(self):
         result = self.thing.nested_method_calls("abc")
 
@@ -143,7 +142,7 @@ class SampleManager(object):
 class Other(unittest.TestCase):
 
     def test_chained_calls_and_properties_with_return_value(self):
-        manager = Mock(spec=SampleManager)
+        manager = mock_ext.Mock(spec=SampleManager)
         result = SampleManager.some_other_chained_call(manager)
         manager.assertChained([
             'base_query',
