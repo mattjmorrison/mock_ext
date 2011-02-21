@@ -31,3 +31,8 @@ def patch_except(klass, *args, **kwargs):
                 func = mock.patch.object(klass, attribute, mock_class())(func)
         return func
     return first_wrap
+
+def _patch_except_model(klass, *args, **kwargs):
+    return patch_except(klass, "_meta", *args, **kwargs)
+
+patch_except.model = _patch_except_model

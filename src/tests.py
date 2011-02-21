@@ -12,6 +12,12 @@ class NameMissing(ValueError):
 class AddressMissing(ValueError):
     pass
 
+class DummyDjangoModel(object):
+    _meta = "Meta"
+
+    def something(self):
+        pass
+
 class MyThing(object):
     def __init__(self):
         self.name = None
@@ -50,7 +56,8 @@ class MyThing(object):
     def get_something(self):
         return "Something"
 
-class SomeTests(unittest.TestCase):
+
+class PatchExceptTests(unittest.TestCase):
 
     def setUp(self):
         self.thing = MyThing()
@@ -104,7 +111,13 @@ class SomeTests(unittest.TestCase):
     def test_sets_address_and_things(self):
         self.thing.do_something()
         self.assertTrue(isinstance(self.thing.get_something(), mock.MagicMock))
-        
+
+class PatchExceptModelTests(unittest.TestCase):
+
+    @patch_except.model(DummyDjangoModel, 'something')
+    def test_does_not_patch_meta_for_django_models(self):
+        model = DummyDjangoModel()
+        self.assertEqual('Meta', model._meta)
 
 
 if __name__ == '__main__':
