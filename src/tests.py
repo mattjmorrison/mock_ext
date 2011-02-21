@@ -1,7 +1,5 @@
 import unittest
-import mock
-
-from mock_ext import patch_except
+import mock_ext
 
 class AgeMissing(ValueError):
     pass
@@ -11,12 +9,6 @@ class NameMissing(ValueError):
 
 class AddressMissing(ValueError):
     pass
-
-class DummyDjangoModel(object):
-    _meta = "Meta"
-
-    def something(self):
-        pass
 
 class MyThing(object):
     def __init__(self):
@@ -56,6 +48,17 @@ class MyThing(object):
     def get_something(self):
         return "Something"
 
+    def nested_method_calls(self, stuff):
+        return self.nested_call_one().first(stuff).second(stuff).third(123)
+
+    def nested_call_one(self):
+        return self
+
+    def first(self):
+        return self
+
+    def second(self):
+        return self
 
 class PatchExceptTests(unittest.TestCase):
 
@@ -86,39 +89,79 @@ class PatchExceptTests(unittest.TestCase):
     def test_something_does_everything(self):
         self.thing.do_something()
         self.assertEqual(1, self.thing.things)
-    test_something_does_everything = mock.patch.object(MyThing, 'set_name', mock.Mock())(test_something_does_everything)
-    test_something_does_everything = mock.patch.object(MyThing, 'set_age', mock.Mock())(test_something_does_everything)
-    test_something_does_everything = mock.patch.object(MyThing, 'set_address', mock.Mock())(test_something_does_everything)
+    test_something_does_everything = mock_ext.patch.object(MyThing, 'set_name', mock_ext.Mock())(test_something_does_everything)
+    test_something_does_everything = mock_ext.patch.object(MyThing, 'set_age', mock_ext.Mock())(test_something_does_everything)
+    test_something_does_everything = mock_ext.patch.object(MyThing, 'set_address', mock_ext.Mock())(test_something_does_everything)
 
-    @patch_except(MyThing, 'do_something', 'add')
+    @mock_ext.patch.exclude(MyThing, 'do_something', 'add')
     def test_something_does_everything_new_mock(self):
         self.thing.do_something()
         self.assertEqual(1, self.thing.things)
 
-    @patch_except(MyThing, 'do_something', 'set_name', 'add')
+    @mock_ext.patch.exclude(MyThing, 'do_something', 'set_name', 'add')
     def test_sets_name_and_things(self):
         self.thing.do_something(name="matt")
         self.assertEqual(1, self.thing.things)
         self.assertEqual(self.thing.name, 'matt')
 
-    @patch_except(MyThing, 'do_something', 'set_address', 'add')
+    @mock_ext.patch.exclude(MyThing, 'do_something', 'set_address', 'add')
     def test_sets_address_and_things(self):
         self.thing.do_something(address="xxx")
         self.assertEqual(2, self.thing.things)
         self.assertEqual(self.thing.address, 'xxx')
 
-    @patch_except(MyThing, 'do_something', with_mock=mock.MagicMock)
+    @mock_ext.patch.exclude(MyThing, 'do_something', with_mock=mock_ext.MagicMock)
     def test_sets_address_and_things(self):
         self.thing.do_something()
-        self.assertTrue(isinstance(self.thing.get_something(), mock.MagicMock))
+        self.assertTrue(isinstance(self.thing.get_something(), mock_ext.MagicMock))
 
-class PatchExceptModelTests(unittest.TestCase):
+    @mock_ext.patch.exclude(MyThing, 'nested_method_calls', with_mock=mock_ext.Mock)
+    def test_chained_calls(self):
+        result = self.thing.nested_method_calls("abc")
 
-    @patch_except.model(DummyDjangoModel, 'something')
+        self.thing.nested_call_one.assertChained([
+            ('third', (123,), {}),
+            ('first', ("abc",), {}),
+            ('second', ("abc",), {}),
+        ], result)
+
+class SampleManager(object):
+    @property
+    def base_query(self):
+        pass
+
+    def filter(self):
+        pass
+
+    def some_other_chained_call(self):
+        return self.base_query.filter(one=1, two=2).filter(three=3).filter(three=3)
+
+    def some_chained_call(self):
+        return self.base_query.filter(one=1).filter(two=2).filter(three=3).filter(three=3)
+
+class CallChainTests(unittest.TestCase):
+
+    def test_chained_calls_and_properties_with_return_value(self):
+        manager = mock_ext.Mock(spec=SampleManager)
+        result = SampleManager.some_other_chained_call(manager)
+        manager.assertChained([
+            'base_query',
+            ('filter', (), {'one':1, 'two':2}),
+            ('filter', (), {'three':3}),
+            ('filter', (), {'three':3}),
+        ], result)
+
+class DummyDjangoModel(object):
+    _meta = "Meta"
+
+    def something(self):
+        pass
+
+class DjangoModelTests(unittest.TestCase):
+    @mock_ext.patch.exclude.model(DummyDjangoModel, 'something')
     def test_does_not_patch_meta_for_django_models(self):
         model = DummyDjangoModel()
         self.assertEqual('Meta', model._meta)
-
 
 if __name__ == '__main__':
     unittest.main()

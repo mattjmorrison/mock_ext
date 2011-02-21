@@ -1,6 +1,67 @@
 import mock
+from mock import patch, MagicMock
 
-def patch_except(klass, *args, **kwargs):
+class Mock(mock.Mock):
+
+    missing_return_value = "return value '%s' was not returned at the end of the chain"
+    missing_from_chain = "%s not found in the call chain"
+
+    def assertChained(self, call_chain, value=None):
+        if self._get_method_calls(self):
+            obj = self
+        else:
+            obj = self.return_value
+        return self._assertChained(obj, call_chain, value)
+
+    def _assertChained(self, mock_object, call_chain, value):
+        calls = self._get_method_calls(mock_object)
+        for mock_call in calls:
+            for method_call_number, method_call in enumerate(call_chain):
+                if method_call == mock_call:
+                    if not isinstance(mock_call, (mock.callargs, str)):
+                        return True
+                    else:
+                        new_call_chain = self._get_call_chain(call_chain, method_call_number)
+                        return_value = self._get_return_value(method_call, mock_object)
+                        if not new_call_chain:
+                            return self._handle_end_of_chain(return_value, value)
+                        if self._assertChained(return_value, new_call_chain, value):
+                            return True
+
+        raise AssertionError(self.missing_from_chain % call_chain)
+
+    def _get_method_calls(self, mock_object):
+        calls_and_properties = []
+        calls = mock_object.method_calls
+        for call in calls:
+            if '.' not in call[0]:
+                calls_and_properties.append(call)
+
+        return calls_and_properties + mock_object._children.keys()
+
+    def _get_return_value(self, method_call, mock_object):
+        if '.' in method_call[0]:
+            return_value = mock_object
+            for node in method_call[0].split('.'):
+                return_value = getattr(return_value, node)
+            return_value = return_value.return_value
+        else:
+            if isinstance(method_call, (tuple, mock.callargs)):
+                return_value = getattr(mock_object, method_call[0]).return_value
+            else:
+                return_value = getattr(mock_object, method_call)
+        return return_value
+
+    def _get_call_chain(self, call_chain, method_call_number):
+        return call_chain[0:method_call_number] + call_chain[method_call_number + 1:]
+
+    def _handle_end_of_chain(self, return_value, value):
+        if not value or value == return_value:
+            return True
+        else:
+            raise AssertionError(self.missing_return_value % value)
+
+def patch_exclude(klass, *args, **kwargs):
     """
     USAGE:
 
@@ -8,7 +69,6 @@ def patch_except(klass, *args, **kwargs):
     def test_something(self):
         SomeClass.some_attribute # <= is NOT a mock
         SomeClass.anything_else # <= IS a mock!
-
 
     @patch_except(SomeClass, some_attribute, some_other_attribute, ...)
     def test_something(self):
@@ -23,7 +83,7 @@ def patch_except(klass, *args, **kwargs):
         SomeClass.something_not_passed_to_patch_except # <= IS a MagicMock!
     """
 
-    mock_class = kwargs.get('with_mock', mock.Mock)
+    mock_class = kwargs.get('with_mock', Mock)
 
     def first_wrap(func):
         for attribute in dir(klass):
@@ -32,7 +92,8 @@ def patch_except(klass, *args, **kwargs):
         return func
     return first_wrap
 
-def _patch_except_model(klass, *args, **kwargs):
-    return patch_except(klass, "_meta", *args, **kwargs)
+def _patch_exclude_model(klass, *args, **kwargs):
+    return patch_exclude(klass, '_meta', *args, **kwargs)
 
-patch_except.model = _patch_except_model
+mock.patch.exclude = patch_exclude
+mock.patch.exclude.model = _patch_exclude_model
