@@ -3,17 +3,17 @@ from mock import patch, MagicMock
 
 class Mock(mock.Mock):
 
-    missing_return_value = "return value '%s' was not returned at the end of the chain"
+    missing_return_value = "'%s' was expected to return but '%s' was found"
     missing_from_chain = "%s not found in the call chain"
 
-    def assertChained(self, call_chain, value=None):
+    def assert_chained(self, call_chain, value=None):
         if self._get_method_calls(self):
             obj = self
         else:
             obj = self.return_value
-        return self._assertChained(obj, call_chain, value)
+        return self._assert_chained(obj, call_chain, value)
 
-    def _assertChained(self, mock_object, call_chain, value):
+    def _assert_chained(self, mock_object, call_chain, value):
         calls = self._get_method_calls(mock_object)
         for mock_call in calls:
             for method_call_number, method_call in enumerate(call_chain):
@@ -25,7 +25,7 @@ class Mock(mock.Mock):
                         return_value = self._get_return_value(method_call, mock_object)
                         if not new_call_chain:
                             return self._handle_end_of_chain(return_value, value)
-                        if self._assertChained(return_value, new_call_chain, value):
+                        if self._assert_chained(return_value, new_call_chain, value):
                             return True
 
         raise AssertionError(self.missing_from_chain % call_chain)
@@ -56,33 +56,12 @@ class Mock(mock.Mock):
         return call_chain[0:method_call_number] + call_chain[method_call_number + 1:]
 
     def _handle_end_of_chain(self, return_value, value):
-        if not value or value == return_value:
+        if value == return_value:
             return True
         else:
-            raise AssertionError(self.missing_return_value % value)
+            raise AssertionError(self.missing_return_value % (value, return_value))
 
 def patch_exclude(klass, *args, **kwargs):
-    """
-    USAGE:
-
-    @patch_except(SomeClass, some_attribute)
-    def test_something(self):
-        SomeClass.some_attribute # <= is NOT a mock
-        SomeClass.anything_else # <= IS a mock!
-
-    @patch_except(SomeClass, some_attribute, some_other_attribute, ...)
-    def test_something(self):
-        SomeClass.some_attribute # <= is NOT a mock
-        SomeClass.some_other_attribute # <= is NOT a mock
-        SomeClass.... # <= is NOT a mock
-        SomeClass.something_not_passed_to_patch_except # <= IS a mock!
-
-    @patch_except(SomeClass, some_attribute, with_mock=MagicMock)
-    def test_something(self):
-        SomeClass.some_attribute # <= is NOT a mock
-        SomeClass.something_not_passed_to_patch_except # <= IS a MagicMock!
-    """
-
     mock_class = kwargs.get('with_mock', Mock)
 
     def first_wrap(func):

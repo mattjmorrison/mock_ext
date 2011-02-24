@@ -144,12 +144,22 @@ class CallChainTests(unittest.TestCase):
     def test_chained_calls_and_properties_with_return_value(self):
         manager = mock_ext.Mock(spec=SampleManager)
         result = SampleManager.some_other_chained_call(manager)
-        manager.assertChained([
+        manager.assert_chained([
             'base_query',
             ('filter', (), {'one':1, 'two':2}),
             ('filter', (), {'three':3}),
             ('filter', (), {'three':3}),
         ], result)
+
+    def test_assert_chained_fails_when_result_is_different(self):
+        manager = mock_ext.Mock(spec=SampleManager)
+        SampleManager.some_other_chained_call(manager)
+        self.assertRaises(AssertionError, manager.assert_chained, [
+            'base_query',
+            ('filter', (), {'one':1, 'two':2}),
+            ('filter', (), {'three':3}),
+            ('filter', (), {'three':3}),
+        ], mock_ext.Mock())
 
 class DummyDjangoModel(object):
     _meta = "Meta"
